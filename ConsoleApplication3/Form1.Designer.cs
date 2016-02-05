@@ -46,9 +46,8 @@
             // 
             this.textBox1.Location = new System.Drawing.Point(12, 12);
             this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(323, 20);
+            this.textBox1.Size = new System.Drawing.Size(318, 20);
             this.textBox1.TabIndex = 1;
-            this.textBox1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.textBox1_KeyDown);
             // 
             // SendButton
             // 
@@ -136,7 +135,7 @@
             this.listBox1.FormattingEnabled = true;
             this.listBox1.Location = new System.Drawing.Point(94, 38);
             this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(241, 173);
+            this.listBox1.Size = new System.Drawing.Size(236, 173);
             this.listBox1.TabIndex = 9;
             this.listBox1.DragDrop += new System.Windows.Forms.DragEventHandler(this.listBox1_DragDrop);
             this.listBox1.DragOver += new System.Windows.Forms.DragEventHandler(this.listBox1_DragOver);
@@ -144,9 +143,10 @@
             // 
             // Form1
             // 
+            this.AcceptButton = this.SendButton;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(347, 264);
+            this.ClientSize = new System.Drawing.Size(337, 264);
             this.Controls.Add(this.listBox1);
             this.Controls.Add(this.RemoveButton);
             this.Controls.Add(this.RefreshButton);
@@ -157,9 +157,10 @@
             this.Controls.Add(this.SendButton);
             this.Controls.Add(this.textBox1);
             this.Controls.Add(this.axWindowsMediaPlayer1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Fixed3D;
             this.Name = "Form1";
             this.ShowInTaskbar = false;
-            this.Text = "Form1";
+            this.Text = "Easy Music Bot";
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.axWindowsMediaPlayer1)).EndInit();
             this.ResumeLayout(false);

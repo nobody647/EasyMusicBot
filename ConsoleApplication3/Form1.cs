@@ -1,5 +1,6 @@
 ﻿using Google.Apis.YouTube.v3.Data;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
@@ -32,14 +33,6 @@ namespace EasyMusicBot
         private void button1_Click(object sender, EventArgs e)
         {
             p.SendCmd(textBox1.Text);
-        }
-
-        private void textBox1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode.Equals(Keys.Enter))
-            {
-                p.SendCmd(textBox1.Text);
-            }
         }
 
         private void SkipButton_Click(object sender, EventArgs e)
@@ -175,6 +168,7 @@ namespace EasyMusicBot
         private void listBox1_MouseDown(object sender, MouseEventArgs e)
         {
             if (this.listBox1.SelectedItem == null) return;
+            if (this.listBox1.SelectedIndex == 0) return;
             this.listBox1.DoDragDrop(this.listBox1.SelectedItem, DragDropEffects.Move);
         }
 
@@ -189,10 +183,27 @@ namespace EasyMusicBot
             int index = this.listBox1.IndexFromPoint(point);
             if (index < 0) index = this.listBox1.Items.Count - 1;
             String data = (String)e.Data.GetData(typeof(String));
-            this.listBox1.Items.Remove(data);
-            //p.VidList.Remove(p.GetVideoBySearch(data));
-            this.listBox1.Items.Insert(index, data);
-            //p.VidList.Insert(index, p.GetVideoBySearch(data));
+
+            if(index != 0)
+            {
+                this.listBox1.Items.Remove(data);
+                List<Video> FakeList = p.VidList;
+                for(int i = p.VidList.Count - 1; i >= 0; i--)
+                {
+                    if (p.VidList[i].Snippet.Title.Equals(data))
+                    {
+                        p.VidList.Remove(p.VidList[i]);
+                        break;
+                    }
+                }
+                this.listBox1.Items.Insert(index, data);
+                p.VidList.Insert(index, p.GetVideoBySearch(data));
+            }
+            else
+            {
+
+            }
+
 
         }
     }

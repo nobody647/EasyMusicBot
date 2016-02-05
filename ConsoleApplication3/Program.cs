@@ -47,6 +47,7 @@ namespace EasyMusicBot
         String DLPath;
 
         Stopwatch watch = new Stopwatch();
+        bool Skipping = false;
 
         static Discord.Channel LRC;
 
@@ -419,7 +420,7 @@ namespace EasyMusicBot
                 }
             }
 
-            if (e.Text.ToLower().Equals("!skipall"))
+            if (e.Text.ToLower().Equals("!skipall") || e.Text.ToLower().Equals("!clearplaylist"))
             {
                 if (SpChannel && !e.Channel.Name.Equals(Channel))
                 {
@@ -430,6 +431,7 @@ namespace EasyMusicBot
                 {
                     await e.Channel.SendMessage("Sorry you don't have permission to do that. Required role: " + ModRole);
                 }
+                Skipping = true;
                 ClearPlaylist();
                 await e.Channel.SendMessage("Playlist cleared");
             }
@@ -497,6 +499,8 @@ namespace EasyMusicBot
                             return;
                         }
                     }
+                    //MessageBox.Show("SKip");
+                    Skipping = true;
                     f.axWindowsMediaPlayer1.Ctlcontrols.stop();
                     try { CurAM.Kill(); } catch { }
                     await PutTaskDelay(110);
@@ -665,12 +669,7 @@ namespace EasyMusicBot
 
         async Task WMPPlay(Video v)
         {
-            //while (!File.Exists(name.Remove(name.Length - 4) + "!done.mp3"))
-            //{
-            //    Console.WriteLine("Waiting for download");
-            //    await PutTaskDelay(1000);
-            //}
-            while (!File.Exists(DLPath + "/" + v.Id.Remove(v.Id.Length - 4) + "!done.mp3"))
+            while (!DownloadExists(v, true))
             {
                 Console.WriteLine("Waiting for download");
                 await PutTaskDelay(1000);
@@ -687,18 +686,15 @@ namespace EasyMusicBot
         async Task PlayDLVid(Video v)
         {
             Console.WriteLine("Trying to play video");
-            //MessageBox.Show("file:///" + DLPath +"/" + v.Id + "!done.mp3");
-            while (!File.Exists(DLPath + "/" + v.Id + "!done.mp3"))
+            while (!DownloadExists(v, true))
             {
                 Console.WriteLine("Waiting for download");
                 await PutTaskDelay(1000);
             }
 
             Console.WriteLine(v.Snippet.Title + " Playling download");
-            //PUT --play-and-exit BACK TO FIX THINGS
 
             CurAM = Process.Start(VLCPath+"/vlc.exe", "file:///" + DLPath + "/" + v.Id + "!done.mp3 --qt-start-minimized");
-            //CurVLC = Process.Start("C:/Program Files (x86)/VideoLAN/VLC/vlc.exe", "file:///" + Uri.EscapeUriString(name.Remove(name.Length - 4) + "!done.mp3") + " --play-and-exit --qt-start-minimized");
 
             while (!CurAM.HasExited)
             {
@@ -713,22 +709,27 @@ namespace EasyMusicBot
         {
             CurAM = Process.Start(VLCPath + "/vlc.exe", " --no-video http://www.youtube.com/watch?v=" + v.Id + " --qt-start-minimized");
 
+            Skipping = false;
             watch.Restart();
 
-            //MessageBox.Show(watch.ElapsedMilliseconds.ToString());
-            while (!CurAM.HasExited)
-            {
-                await PutTaskDelay(100);
-            }
-            //MessageBox.Show(watch.ElapsedMilliseconds.ToString());
-            if (watch.ElapsedMilliseconds < 2000)
-            {
-                await LRC.SendMessage("Video appears to encrypted, starting download");
-                Thread t = new Thread(() => { DownloadAudio(v.Id); });
-                t.Start();
-                await PlayDLVid(v);
-            }
+            while (!CurAM.HasExited) await PutTaskDelay(100);
 
+            if (watch.ElapsedMilliseconds < 10000 && GetVidLength(v) > 10 && !Skipping)
+            {
+                if (DownloadExists(v, true)) await LRC.SendMessage("Video appears to encrypted, playing download");
+                else
+                {
+                    await LRC.SendMessage("Video appears to be encrypted, starting download");
+
+                    //Thread t = new Thread(() => { DownloadAudio(v.Id); });
+                    //t.Start();
+                    DownloadAudio(v.Id);
+                    await LRC.SendMessage("Download finished");
+                }
+                await PlayDLVid(v);
+                return;
+            }
+            Skipping = false;
             Console.WriteLine("VLC has exited");
             VidList.RemoveAt(0);
         }
@@ -743,40 +744,20 @@ namespace EasyMusicBot
                 .OrderByDescending(info => info.AudioBitrate)
                 .First();
 
-            /*
-             * If the video has a decrypted signature, decipher it
-             */
-            if (video.RequiresDecryption)
-            {
-                MessageBox.Show("ENCYEPTINGO");
-                DownloadUrlResolver.DecryptDownloadUrl(video);
-            }
+            if (video.RequiresDecryption) DownloadUrlResolver.DecryptDownloadUrl(video);
 
-            /*
-             * Create the audio downloader.
-             * The first argument is the video where the audio should be extracted from.
-             * The second argument is the path to save the audio file.
-             */
             var audioDownloader = new AudioDownloader(video, Path.Combine("C:/Downloads", Id + video.AudioExtension));
 
-            // Register the progress events. We treat the download progress as 85% of the progress and the extraction progress only as 15% of the progress,
-            // because the download will take much longer than the audio extraction.
             audioDownloader.DownloadProgressChanged += (sender, args) => Console.WriteLine(args.ProgressPercentage * 0.85);
             audioDownloader.AudioExtractionProgressChanged += (sender, args) => Console.WriteLine(85 + args.ProgressPercentage * 0.15);
 
-            /*
-             * Execute the audio downloader.
-             * For GUI applications note, that this method runs synchronously.
-             */
-            if (File.Exists(audioDownloader.SavePath.Remove(audioDownloader.SavePath.Length - 4) + "!done.mp3"))
-            {
-                return;
-            }
+            if (DownloadExists(GetVideoBySearch(Id), true)) return;
 
             try
             {
                 audioDownloader.Execute();
             }
+
             catch(System.Net.WebException e)
             {
                 LRC.SendMessage("Sorry, that video cannot be added");
@@ -789,10 +770,8 @@ namespace EasyMusicBot
             String NewName = audioDownloader.SavePath.Insert(dotIndex, "!done");
             audioDownloader.DownloadFinished += (s, e) => System.IO.File.Move(audioDownloader.SavePath, NewName);
             System.IO.File.Move(audioDownloader.SavePath, NewName);
-            //MessageBox.Show(audioDownloader.SavePath);
-            //MessageBox.Show(NewName);
-            //System.Threading.Thread.CurrentThread.Suspend();
-
+            Console.WriteLine("Download finished!");
+            return;
 
         }
 
@@ -815,6 +794,12 @@ namespace EasyMusicBot
             f.axWindowsMediaPlayer1.Ctlcontrols.stop();
             VidList.Clear();
             try { CurAM.Kill(); } catch { }
+        }
+        bool DownloadExists(Video v, bool done)
+        {
+            if (done) if (File.Exists(DLPath + "/" + v.Id + "!done.mp3")) return true;
+            if (File.Exists(DLPath + "/" + v.Id + "!done.mp3")) return true;
+            return false;
         }
     }
 
