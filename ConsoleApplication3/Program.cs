@@ -1,26 +1,19 @@
 ﻿
 using Discord;
-using Discord.Commands;
-using Discord.Commands.Permissions.Levels;
-using Discord.Commands.Permissions.Userlist;
-using Discord.Modules;
-using Discord.Audio;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Discord.Legacy;
-using YoutubeExtractor;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using YoutubeExtractor;
 
 namespace EasyMusicBot
 {
@@ -37,6 +30,8 @@ namespace EasyMusicBot
         [DllImport("Kernel32")]
         private static extern bool SetConsoleCtrlHandler(EventHandler handler, bool add);
 
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         String email;
         String password;
@@ -47,7 +42,11 @@ namespace EasyMusicBot
         String SkipRole;
         bool SpChannel;
         String Channel;
-        public bool UseVLC;
+        public String AudioMethod;
+        String VLCPath;
+        String DLPath;
+
+        Stopwatch watch = new Stopwatch();
 
         static Discord.Channel LRC;
 
@@ -56,13 +55,14 @@ namespace EasyMusicBot
 
         public List<Video> VidList = new List<Video>();
 
-        public Process CurVLC;
+        public Process CurAM;
         public DiscordClient Client;
 
         YouTubeService youtubeService = new YouTubeService(new BaseClientService.Initializer()
         {
             ApiKey = "AIzaSyBTYNvJ80kHSE8AypP7Yst5Fshc8ZibHRA",
         });
+
         private Discord.Channel DChannel;
 
         static void Main(string[] args)
@@ -82,7 +82,8 @@ namespace EasyMusicBot
 
                 while (line != null)
                 {
-                    if (line.Contains("="))
+                    //if (line.StartsWith("#")) break;
+                    if (line.Contains("=") && !line.StartsWith("#"))
                     {
                         switch (line.Split('=')[0])
                         {
@@ -129,19 +130,21 @@ namespace EasyMusicBot
                             case "channel":
                                 Channel = line.Split('=')[1];
                                 break;
-                            case "useVLC":
-                                UseVLC = Convert.ToBoolean(line.Split('=')[1]);
+                            case "audioMethod":
+                                AudioMethod = line.Split('=')[1];
+                                break;
+                            case "VLCPath":
+                                VLCPath = line.Split('=')[1].Replace('\\', '/');
+                                break;
+                            case "DLPath":
+                                DLPath = line.Split('=')[1].Replace('\\', '/');
                                 break;
                             default:
                                 break;
                         }
                     }
                     line = sr.ReadLine();
-                    try
-                    {
-                        line = line.Replace(" ", "");
-                    }
-                    catch { }
+                    if (!line.Contains("Path")) try { line = line.Replace(" ", ""); } catch { }
 
                 }
                 sr.Close();
@@ -170,86 +173,24 @@ namespace EasyMusicBot
 
         void VerifyReady()
         {
-            if (email != null)
-            {
+            //MessageBox.Show(AudioMethod);
+            if (email == null) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (password != null)
-            {
+            if (password == null) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (SREnable != null)
-            {
+            if (ModRole == null) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (MaxLength != null)
-            {
+            if (RequestRole == null) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (ModRole != null)
-            {
+            if (SkipRole == null) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (RequestRole != null)
-            {
+            if (Channel == null) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (SkipRole != null)
-            {
+            if (AudioMethod == null) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (SpChannel != null)
-            {
+            if (!AudioMethod.Equals("WMPDl") && !AudioMethod.Equals("VLCDl") && !AudioMethod.Equals("VLCSt") && !AudioMethod.Equals("IE")) throw new Exception();
 
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (Channel != null)
-            {
-
-            }
-            else
-            {
-                throw new Exception();
-            }
-            if (UseVLC != null)
-            {
-
-            }
-            else
-            {
-                throw new Exception();
-            }
+            if (DLPath == null) throw new Exception();
         }
 
         public void Run()
@@ -281,7 +222,7 @@ namespace EasyMusicBot
 
 
 
-            DLVidLoopAsync();
+            VidLoopAsync();
 
             Client.Connected += (s, e) => {
                 Console.WriteLine("Connected to Discord with email " + email);
@@ -323,16 +264,11 @@ namespace EasyMusicBot
             
         }
 
-        private void Log_Message(object sender, LogMessageEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
         async void InterpretCommand(Discord.Message e)
         {
             if (e.Text.ToLower().Equals("!pause"))
             {
-                if (UseVLC)
+                if (AudioMethod.Contains("VLC"))
                 {
                     SendKeys.SendWait("%(j)");
                 }
@@ -344,7 +280,7 @@ namespace EasyMusicBot
             }
             if (e.Text.ToLower().Equals("!resume") || e.Text.ToLower().Equals("!play"))
             {
-                if (UseVLC)
+                if (AudioMethod.Contains("VLC"))
                 {
                     SendKeys.SendWait("%(j)");
                 }
@@ -414,7 +350,7 @@ namespace EasyMusicBot
                 Console.WriteLine("Config command recieved!");
                 if (!CheckPrivilage(e.User, e.Server, ModRole) && !e.User.Name.Equals("Ian"))
                 {
-                    await e.Channel.SendMessage("Sorry you don't have permission to do that");
+                    await e.Channel.SendMessage("Sorry you don't have permission to do that. Required role: "+ModRole);
                     return;
                 }
                 try
@@ -455,6 +391,27 @@ namespace EasyMusicBot
                         Console.WriteLine("Thing changed!");
                         Channel = e.Text.Split(' ')[2];
                     }
+                    if (e.Text.Split(' ')[1].ToLower().Equals("channel"))
+                    {
+                        await e.Channel.SendMessage("Config changed!");
+                        Console.WriteLine("Thing changed!");
+                        Channel = e.Text.Split(' ')[2];
+                    }
+                    if (e.Text.Split(' ')[1].ToLower().Equals("audiomethod"))
+                    {
+                        ClearPlaylist();
+                        await e.Channel.SendMessage("Config changed!");
+                        Console.WriteLine("Thing changed!");
+                        AudioMethod = e.Text.Split(' ')[2];
+                    }
+                    if (e.Text.Split(' ')[1].ToLower().Equals("dlpath"))
+                    {
+                        ClearPlaylist();
+                        await e.Channel.SendMessage("Config changed!");
+                        Console.WriteLine("Thing changed!");
+                        DLPath = e.Text.Split(' ')[2];
+                    }
+                    VerifyReady();
                 }
                 catch
                 {
@@ -469,13 +426,11 @@ namespace EasyMusicBot
                     await e.Channel.SendMessage("This isn't " + Channel + ". Please direct all your songrequesty needs there");
                     return;
                 }
-                if (!CheckPrivilage(e.User, e.Server, SkipRole) && !e.User.Name.Equals("Ian"))
+                if (!CheckPrivilage(e.User, e.Server, ModRole) && !e.User.Name.Equals("Ian"))
                 {
-                    await e.Channel.SendMessage("Sorry you don't have permission to do that");
+                    await e.Channel.SendMessage("Sorry you don't have permission to do that. Required role: " + ModRole);
                 }
-                f.axWindowsMediaPlayer1.Ctlcontrols.stop();
-                try { CurVLC.Kill(); } catch { }
-                VidList.Clear();
+                ClearPlaylist();
                 await e.Channel.SendMessage("Playlist cleared");
             }
 
@@ -502,6 +457,7 @@ namespace EasyMusicBot
                     {
                         break;
                     }
+                    //MessageBox.Show(e.Text.Remove(0, st.Length + 1));
                     await VidAdd(e.Text.Remove(0, st.Length + 1));
                 }
             }
@@ -542,7 +498,8 @@ namespace EasyMusicBot
                         }
                     }
                     f.axWindowsMediaPlayer1.Ctlcontrols.stop();
-                    try { CurVLC.Kill(); } catch { }
+                    try { CurAM.Kill(); } catch { }
+                    await PutTaskDelay(110);
                     f.BoxHandler();
                 }
             }
@@ -560,6 +517,10 @@ namespace EasyMusicBot
 
         Boolean CheckPrivilage(User u, Server s, String rName)
         {
+            if (rName.Equals("@everyone"))
+            {
+                return true;
+            }
             foreach (Role r in u.Roles)
             {
                 //MessageBox.Show(r.Name);
@@ -571,21 +532,23 @@ namespace EasyMusicBot
             return false;
         }
 
-        public Video GetVideoBySearch(string message)
+        public Video GetVideoBySearch(string Message)
         {
-            if (message.Contains("youtube.com"))
+            //If message is a youtube link, change message to video ID
+            if (Message.Contains("youtu.be"))
             {
-                String Uncheked = message.Split('=')[1];
-                try
-                {
-                    message = Uncheked.Split('&')[0];
-                }
-                catch { }
-                message = Uncheked;
+                Message = Message.Substring(Message.LastIndexOf('/'));
+                if (Message.Contains('?')) Message = Message.Remove(Message.IndexOf('?'));
             }
+            if (Message.Contains("youtube.com"))
+            {
+                Message = Message.Substring(Message.IndexOf('='));
+                if(Message.Contains('&')) Message = Message.Remove(Message.IndexOf('&'));
+            }
+
             //Creates search request
             var searchListRequest = youtubeService.Search.List("snippet");
-            searchListRequest.Q = message;
+            searchListRequest.Q = Message;
             searchListRequest.Type = "video";
             searchListRequest.MaxResults = 1;
 
@@ -608,7 +571,6 @@ namespace EasyMusicBot
         async Task VidAdd(string message)
         {
             Video Result = GetVideoBySearch(message);
-
             if (Result == null)
             {
                 await LRC.SendMessage("Sorry, we couldn't find a video for *" + message + "*");
@@ -630,42 +592,57 @@ namespace EasyMusicBot
                 Console.WriteLine("Video " + Result.Snippet.Title + " is " + GetVidLength(Result) + " long. This is longer than our max length of " + MaxLength);
                 return;
             }
+            if (Result.Snippet.ChannelTitle.ToLower().Contains("vevo"))
+            {
+                //await LRC.SendMessage("Sorry, Vevo videos are currently nut supported by EasyMusicbot");
+                //return;
+            }
 
-            Thread t = new Thread(() => { DownloadAudio("http://www.youtube.com/watch?v=" + Result.Id); });
-            t.Start();
+            if (AudioMethod.Contains("Dl"))
+            {
+                Thread t = new Thread(() => { DownloadAudio(Result.Id); });
+                t.Start();
+            }
             VidList.Add(Result);
-            //f.BoxHandler();
+            f.BoxHandler();
             Console.WriteLine("Added video " + Result.Snippet.Title);
             await LRC.SendMessage("Added video *" + Result.Snippet.Title + "*");
         }
 
         int GetVidLength(Video v)
         {
-            String Original = v.ContentDetails.Duration;
-            String Fixed = Original.Trim('P', 'T', 'S');
-            int total;
-            if (Fixed.Contains("H"))
+            try
             {
-                //LRC.SendMessage("Video is over one hour long");
-                return (MaxLength + 10);
-            }
-            if (Fixed.Contains("M"))
-            {
-                String[] Split = Fixed.Split('M');
-                string mins = Split[0];
-                Console.WriteLine("Video is " + Split[0] + " minutes and " + Split[1] + " seconds long");
-                total = (Convert.ToInt32(mins) * 60) + Convert.ToInt32(Split[1]);
+                String Original = v.ContentDetails.Duration;
+                String Fixed = Original.Trim('P', 'T');
+                int total = 0;
+
+                if (Fixed.Contains("H"))
+                {
+                    total += Convert.ToInt32(Fixed.Split('H')[0]) * 3600;
+                    Fixed = Fixed.Substring(Fixed.IndexOf('H') + 1);
+                }
+                if (Fixed.Contains("M"))
+                {
+                    total += Convert.ToInt32(Fixed.Split('M')[0]) * 60;
+                    Fixed = Fixed.Substring(Fixed.IndexOf('M') + 1);
+                }
+                if (Fixed.Contains("S"))
+                {
+                    total += Convert.ToInt32(Fixed.TrimEnd('S'));
+                    Fixed = Fixed.Substring(Fixed.IndexOf('S') + 1);
+                }
+                //MessageBox.Show(total.ToString());
                 return total;
             }
-            else
+            catch
             {
-                Console.WriteLine("Video is " + Fixed + " seconds long");
-                total = Int32.Parse(Fixed);
-                return total;
+                return MaxLength + 1;
             }
+            
         }
 
-        async Task DLVidLoopAsync()
+        async Task VidLoopAsync()
         {
             while (true)
             {
@@ -674,62 +651,92 @@ namespace EasyMusicBot
                     Console.WriteLine("Waiting for video");
                     await PutTaskDelay(1000);
                 }
-                if (UseVLC)
-                {
-                    await PlayDLVid("C:/Downloads/" + VidList[0].Snippet.Title + ".mp3");
-                }
-                else
-                {
-                    await WMPPlay("C:/Downloads/" + VidList[0].Snippet.Title + ".mp3");
-                }
 
-                //f.BoxHandler();
+                if (AudioMethod.Equals("VLCDl")) await PlayDLVid(VidList[0]);
+
+                else if (AudioMethod.Equals("VLCSt")) await PlaySTVid(VidList[0]);
+
+                else if (AudioMethod.Equals("WMPDl")) await WMPPlay(VidList[0]);
+
+                f.BoxHandler();
                 Console.WriteLine("Done!");
             }
         }
 
-        async Task WMPPlay(string name)
+        async Task WMPPlay(Video v)
         {
-            while (!File.Exists(name.Remove(name.Length - 4) + " !done.mp3"))
+            //while (!File.Exists(name.Remove(name.Length - 4) + "!done.mp3"))
+            //{
+            //    Console.WriteLine("Waiting for download");
+            //    await PutTaskDelay(1000);
+            //}
+            while (!File.Exists(DLPath + "/" + v.Id.Remove(v.Id.Length - 4) + "!done.mp3"))
             {
                 Console.WriteLine("Waiting for download");
                 await PutTaskDelay(1000);
             }
-            f.axWindowsMediaPlayer1.URL = (name.Remove(name.Length - 4) + " !done.mp3");
+            f.axWindowsMediaPlayer1.URL = (v.Id.Remove(v.Id.Length - 4) + "!done.mp3");
             f.axWindowsMediaPlayer1.Ctlcontrols.play();
             while (f.axWindowsMediaPlayer1.playState != WMPLib.WMPPlayState.wmppsStopped)
             {
-                await PutTaskDelay(1000);
+                await PutTaskDelay(100);
             }
             VidList.RemoveAt(0);
         }
 
-        async Task PlayDLVid(String name)
+        async Task PlayDLVid(Video v)
         {
             Console.WriteLine("Trying to play video");
-            while (!File.Exists(name.Remove(name.Length - 4) + " !done.mp3"))
+            //MessageBox.Show("file:///" + DLPath +"/" + v.Id + "!done.mp3");
+            while (!File.Exists(DLPath + "/" + v.Id + "!done.mp3"))
             {
                 Console.WriteLine("Waiting for download");
                 await PutTaskDelay(1000);
             }
 
-            Console.WriteLine(name + " Playling download");
+            Console.WriteLine(v.Snippet.Title + " Playling download");
+            //PUT --play-and-exit BACK TO FIX THINGS
 
-            CurVLC = Process.Start("C:/Program Files (x86)/VideoLAN/VLC/vlc.exe", "file:///" + Uri.EscapeUriString(name.Remove(name.Length - 4) + " !done.mp3") + " --play-and-exit --qt-start-minimized");
+            CurAM = Process.Start(VLCPath+"/vlc.exe", "file:///" + DLPath + "/" + v.Id + "!done.mp3 --qt-start-minimized");
+            //CurVLC = Process.Start("C:/Program Files (x86)/VideoLAN/VLC/vlc.exe", "file:///" + Uri.EscapeUriString(name.Remove(name.Length - 4) + "!done.mp3") + " --play-and-exit --qt-start-minimized");
 
-            while (!CurVLC.HasExited)
+            while (!CurAM.HasExited)
             {
-                await PutTaskDelay(1000);
+                await PutTaskDelay(100);
             }
             Console.WriteLine("VLC has exited");
             VidList.RemoveAt(0);
 
         }
-
-        void DownloadAudio(String link)
+        
+        async Task PlaySTVid(Video v)
         {
+            CurAM = Process.Start(VLCPath + "/vlc.exe", " --no-video http://www.youtube.com/watch?v=" + v.Id + " --qt-start-minimized");
 
-            IEnumerable<VideoInfo> videoInfos = DownloadUrlResolver.GetDownloadUrls(link);
+            watch.Restart();
+
+            //MessageBox.Show(watch.ElapsedMilliseconds.ToString());
+            while (!CurAM.HasExited)
+            {
+                await PutTaskDelay(100);
+            }
+            //MessageBox.Show(watch.ElapsedMilliseconds.ToString());
+            if (watch.ElapsedMilliseconds < 2000)
+            {
+                await LRC.SendMessage("Video appears to encrypted, starting download");
+                Thread t = new Thread(() => { DownloadAudio(v.Id); });
+                t.Start();
+                await PlayDLVid(v);
+            }
+
+            Console.WriteLine("VLC has exited");
+            VidList.RemoveAt(0);
+        }
+
+        void DownloadAudio(String Id)
+        {
+            // TODO: FIX THIS SHIT
+            IEnumerable<VideoInfo> videoInfos = DownloadUrlResolver.GetDownloadUrls("http://www.youtube.com/watch?v=" + Id);
 
             VideoInfo video = videoInfos
                 .Where(info => info.CanExtractAudio)
@@ -741,6 +748,7 @@ namespace EasyMusicBot
              */
             if (video.RequiresDecryption)
             {
+                MessageBox.Show("ENCYEPTINGO");
                 DownloadUrlResolver.DecryptDownloadUrl(video);
             }
 
@@ -749,7 +757,7 @@ namespace EasyMusicBot
              * The first argument is the video where the audio should be extracted from.
              * The second argument is the path to save the audio file.
              */
-            var audioDownloader = new AudioDownloader(video, Path.Combine("C:/Downloads", video.Title + video.AudioExtension));
+            var audioDownloader = new AudioDownloader(video, Path.Combine("C:/Downloads", Id + video.AudioExtension));
 
             // Register the progress events. We treat the download progress as 85% of the progress and the extraction progress only as 15% of the progress,
             // because the download will take much longer than the audio extraction.
@@ -760,17 +768,30 @@ namespace EasyMusicBot
              * Execute the audio downloader.
              * For GUI applications note, that this method runs synchronously.
              */
-            if (File.Exists(audioDownloader.SavePath.Remove(audioDownloader.SavePath.Length - 4) + " !done.mp3"))
+            if (File.Exists(audioDownloader.SavePath.Remove(audioDownloader.SavePath.Length - 4) + "!done.mp3"))
             {
                 return;
             }
-            audioDownloader.Execute();
+
+            try
+            {
+                audioDownloader.Execute();
+            }
+            catch(System.Net.WebException e)
+            {
+                LRC.SendMessage("Sorry, that video cannot be added");
+                try { VidList.Remove(GetVideoBySearch(Id)); } catch { }
+                return;
+            }
+            
+            
             int dotIndex = audioDownloader.SavePath.LastIndexOf(".");
-            String NewName = audioDownloader.SavePath.Insert(dotIndex, " !done");
+            String NewName = audioDownloader.SavePath.Insert(dotIndex, "!done");
             audioDownloader.DownloadFinished += (s, e) => System.IO.File.Move(audioDownloader.SavePath, NewName);
             System.IO.File.Move(audioDownloader.SavePath, NewName);
-
-            System.Threading.Thread.CurrentThread.Suspend();
+            //MessageBox.Show(audioDownloader.SavePath);
+            //MessageBox.Show(NewName);
+            //System.Threading.Thread.CurrentThread.Suspend();
 
 
         }
@@ -788,6 +809,12 @@ namespace EasyMusicBot
             Discord.Message ml = m.Result;
             await PutTaskDelay(500);
             await ml.Delete();
+        }
+        void ClearPlaylist()
+        {
+            f.axWindowsMediaPlayer1.Ctlcontrols.stop();
+            VidList.Clear();
+            try { CurAM.Kill(); } catch { }
         }
     }
 
