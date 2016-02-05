@@ -47,7 +47,7 @@ namespace EasyMusicBot
         String DLPath;
 
         Stopwatch watch = new Stopwatch();
-        bool Skipping = false;
+        public bool Skipping = false;
 
         static Discord.Channel LRC;
 

@@ -39,6 +39,7 @@ namespace EasyMusicBot
         {
             if (p.AudioMethod.Contains("VLC"))
             {
+                p.Skipping = true;
                 try { p.CurAM.Kill(); } catch { }
             }
             else
@@ -51,7 +52,7 @@ namespace EasyMusicBot
         {
             if (p.AudioMethod.Contains("VLC"))
             {
-                try { p.CurAM.Kill(); } catch { }
+                SendKeys.SendWait("%(j)");
             }
             else
             {
@@ -63,7 +64,7 @@ namespace EasyMusicBot
         {
             if (p.AudioMethod.Contains("VLC"))
             {
-                try { p.CurAM.Kill(); } catch { }
+                SendKeys.SendWait("%(j)");
             }
             else
             {
@@ -87,19 +88,11 @@ namespace EasyMusicBot
 
         public void BoxHandler()
         {
-            //listBox1.Items.Clear();
-            //foreach (Video v in p.VidList)
-            //{
-            //    listBox1.Items.Add(v.Snippet.Title);
-            //}
-            //MessageBox.Show(listBox1.DisplayMember);
             this.HandleBox();
-
         }
 
         public void HandleBox()
         {
-            //return;
             if (listBox1.InvokeRequired)
             {
                 SetTextCallback d = new SetTextCallback(HandleBox);
@@ -126,6 +119,7 @@ namespace EasyMusicBot
             {
                 if (p.AudioMethod.Contains("VLC"))
                 {
+                    p.Skipping = true;
                     try { p.CurAM.Kill(); } catch { }
                 }
                 else
@@ -143,26 +137,6 @@ namespace EasyMusicBot
 
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (listBox1.SelectedIndex == 0)
-            {
-                if (p.AudioMethod.Contains("VLC"))
-                {
-                    //try { p.CurVLC.Kill(); } catch { }
-                }
-                else
-                {
-                    //axWindowsMediaPlayer1.Ctlcontrols.stop();
-                }
-            }
-            else
-            {
-                if (!File.Exists("C:/Downloads/"+p.VidList[listBox1.SelectedIndex].Snippet.Title.Remove(p.VidList[listBox1.SelectedIndex].Snippet.Title.Length - 4) + " !done.mp3"))
-                {
-
-                }
-                //p.VidList.RemoveAt(listBox1.SelectedIndex);
-            }
-            //BoxHandler();
         }
 
         private void listBox1_MouseDown(object sender, MouseEventArgs e)
@@ -205,6 +179,30 @@ namespace EasyMusicBot
             }
 
 
+        }
+
+        private void listBox1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                if (listBox1.SelectedIndex == 0)
+                {
+                    if (p.AudioMethod.Contains("VLC"))
+                    {
+                        p.Skipping = true;
+                        try { p.CurAM.Kill(); } catch { }
+                    }
+                    else
+                    {
+                        axWindowsMediaPlayer1.Ctlcontrols.stop();
+                    }
+                }
+                else
+                {
+                    p.VidList.RemoveAt(listBox1.SelectedIndex);
+                }
+                BoxHandler();
+            }
         }
     }
 }

@@ -139,6 +139,7 @@
             this.listBox1.TabIndex = 9;
             this.listBox1.DragDrop += new System.Windows.Forms.DragEventHandler(this.listBox1_DragDrop);
             this.listBox1.DragOver += new System.Windows.Forms.DragEventHandler(this.listBox1_DragOver);
+            this.listBox1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.listBox1_KeyDown);
             this.listBox1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.listBox1_MouseDown);
             // 
             // Form1
@@ -158,6 +159,7 @@
             this.Controls.Add(this.textBox1);
             this.Controls.Add(this.axWindowsMediaPlayer1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Fixed3D;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form1";
             this.ShowInTaskbar = false;
             this.Text = "Easy Music Bot";
