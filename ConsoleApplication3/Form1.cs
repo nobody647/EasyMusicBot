@@ -16,7 +16,7 @@ namespace EasyMusicBot
         {
             InitializeComponent();
             //this.Hide();
-            
+
             this.p = p;
         }
 
@@ -78,11 +78,13 @@ namespace EasyMusicBot
             {
                 p.SREnable = false;
                 SRToggleButton.Text = "Enable";
+                p.SetDiscordStatus();
             }
             else
             {
                 p.SREnable = true;
                 SRToggleButton.Text = "Disable";
+                p.SetDiscordStatus();
             }
         }
 
@@ -96,7 +98,7 @@ namespace EasyMusicBot
             if (listBox1.InvokeRequired)
             {
                 SetTextCallback d = new SetTextCallback(HandleBox);
-                this.Invoke(d, new object[] {  });
+                this.Invoke(d, new object[] { });
             }
             else
             {
@@ -158,11 +160,11 @@ namespace EasyMusicBot
             if (index < 0) index = this.listBox1.Items.Count - 1;
             String data = (String)e.Data.GetData(typeof(String));
 
-            if(index != 0)
+            if (index != 0)
             {
                 this.listBox1.Items.Remove(data);
                 List<Video> FakeList = p.VidList;
-                for(int i = p.VidList.Count - 1; i >= 0; i--)
+                for (int i = p.VidList.Count - 1; i >= 0; i--)
                 {
                     if (p.VidList[i].Snippet.Title.Equals(data))
                     {

@@ -33,6 +33,7 @@ namespace EasyMusicBot
         [DllImport("user32.dll")]
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+
         String email;
         String password;
         public bool SREnable;
@@ -227,6 +228,7 @@ namespace EasyMusicBot
 
             Client.Connected += (s, e) => {
                 Console.WriteLine("Connected to Discord with email " + email);
+                //Client.SetGame(null);
                 foreach (Discord.Channel c in Client.GetServer(104979971667197952).TextChannels)
                 {
                     if (c.Name.Equals(Channel))
@@ -304,10 +306,12 @@ namespace EasyMusicBot
                     if (SREnable == false)
                     {
                         SREnable = true;
+                        SetDiscordStatus();
                     }
                     else
                     {
                         SREnable = false;
+                        SetDiscordStatus();
                     }
                     await e.Channel.SendMessage("Songrequest has been set to " + SREnable);
                 }
@@ -317,6 +321,7 @@ namespace EasyMusicBot
                 }
                 return;
             }
+            if (e.Text.Equals("T")) SetDiscordStatus();
 
             if (e.Text.ToLower().Equals("!playlist"))
             {
@@ -343,11 +348,6 @@ namespace EasyMusicBot
 
             if (e.Text.ToLower().StartsWith("!config"))
             {
-                if (SpChannel && !e.Channel.Name.Equals(Channel))
-                {
-                    await e.Channel.SendMessage("This isn't " + Channel + ". Please direct all your songrequesty needs there");
-                    return;
-                }
                 Console.WriteLine("Config command recieved!");
                 if (!CheckPrivilage(e.User, e.Server, ModRole) && !e.User.Name.Equals("Ian"))
                 {
@@ -662,6 +662,8 @@ namespace EasyMusicBot
 
                 else if (AudioMethod.Equals("WMPDl")) await WMPPlay(VidList[0]);
 
+                Client.SetGame(null);
+
                 f.BoxHandler();
                 Console.WriteLine("Done!");
             }
@@ -671,9 +673,12 @@ namespace EasyMusicBot
         {
             while (!DownloadExists(v, true))
             {
+                Client.SetGame("Waiting for download");
                 Console.WriteLine("Waiting for download");
                 await PutTaskDelay(1000);
             }
+            Client.SetGame(VidList[0].Snippet.Title);
+
             f.axWindowsMediaPlayer1.URL = (v.Id.Remove(v.Id.Length - 4) + "!done.mp3");
             f.axWindowsMediaPlayer1.Ctlcontrols.play();
             while (f.axWindowsMediaPlayer1.playState != WMPLib.WMPPlayState.wmppsStopped)
@@ -688,9 +693,11 @@ namespace EasyMusicBot
             Console.WriteLine("Trying to play video");
             while (!DownloadExists(v, true))
             {
+                Client.SetGame("Waiting for download");
                 Console.WriteLine("Waiting for download");
                 await PutTaskDelay(1000);
             }
+            Client.SetGame(VidList[0].Snippet.Title);
 
             Console.WriteLine(v.Snippet.Title + " Playling download");
 
@@ -707,6 +714,8 @@ namespace EasyMusicBot
         
         async Task PlaySTVid(Video v)
         {
+            Client.SetGame(VidList[0].Snippet.Title);
+
             CurAM = Process.Start(VLCPath + "/vlc.exe", " --no-video http://www.youtube.com/watch?v=" + v.Id + " --qt-start-minimized");
 
             Skipping = false;
@@ -723,6 +732,7 @@ namespace EasyMusicBot
 
                     //Thread t = new Thread(() => { DownloadAudio(v.Id); });
                     //t.Start();
+                    Client.SetGame("Waiting for download");
                     DownloadAudio(v.Id);
                     await LRC.SendMessage("Download finished");
                 }
@@ -800,6 +810,16 @@ namespace EasyMusicBot
             if (done) if (File.Exists(DLPath + "/" + v.Id + "!done.mp3")) return true;
             if (File.Exists(DLPath + "/" + v.Id + "!done.mp3")) return true;
             return false;
+        }
+        public void SetDiscordStatus()
+        {
+            if(SREnable) Client.SetStatus(UserStatus.Online);
+            if(!SREnable) Client.SetStatus(UserStatus.Idle);
+            //MessageBox.Show(SREnable.ToString());
+        }
+        static void OnProcessExit(object sender, EventArgs e)
+        {
+            Debug.WriteLine("I'm out of here");
         }
     }
 
