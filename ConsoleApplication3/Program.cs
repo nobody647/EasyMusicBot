@@ -652,7 +652,7 @@ namespace EasyMusicBot
             {
                 while (0 >= VidList.Count)
                 {
-                    Console.WriteLine("Waiting for video");
+                    //Console.WriteLine("Waiting for video");
                     await PutTaskDelay(1000);
                 }
 
@@ -758,6 +758,23 @@ namespace EasyMusicBot
 
             var audioDownloader = new AudioDownloader(video, Path.Combine("C:/Downloads", Id + video.AudioExtension));
 
+            double progress = 0;
+            audioDownloader.DownloadProgressChanged += (sender, args) =>
+            {
+                if (!Math.Round(args.ProgressPercentage * 0.85, 0, MidpointRounding.AwayFromZero).Equals(progress))
+                {
+                    progress = Math.Round(args.ProgressPercentage * 0.85, 0, MidpointRounding.AwayFromZero);
+                    Console.WriteLine(progress);
+                }
+            };
+            audioDownloader.AudioExtractionProgressChanged += (sender, args) =>
+            {
+                if (!Math.Round(args.ProgressPercentage * 0.85, 0, MidpointRounding.AwayFromZero).Equals(progress))
+                {
+                    progress = Math.Round(args.ProgressPercentage * 0.85, 0, MidpointRounding.AwayFromZero);
+                    Console.WriteLine(progress);
+                }
+            };
             audioDownloader.DownloadProgressChanged += (sender, args) => Console.WriteLine(args.ProgressPercentage * 0.85);
             audioDownloader.AudioExtractionProgressChanged += (sender, args) => Console.WriteLine(85 + args.ProgressPercentage * 0.15);
 
