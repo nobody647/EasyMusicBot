@@ -769,9 +769,9 @@ namespace EasyMusicBot
             };
             audioDownloader.AudioExtractionProgressChanged += (sender, args) =>
             {
-                if (!Math.Round(args.ProgressPercentage * 0.85, 0, MidpointRounding.AwayFromZero).Equals(progress))
+                if (!Math.Round(args.ProgressPercentage * 0.15, 0, MidpointRounding.AwayFromZero).Equals(progress))
                 {
-                    progress = Math.Round(args.ProgressPercentage * 0.85, 0, MidpointRounding.AwayFromZero);
+                    progress = Math.Round(args.ProgressPercentage * 0.15, 0, MidpointRounding.AwayFromZero);
                     Console.WriteLine(progress);
                 }
             };
