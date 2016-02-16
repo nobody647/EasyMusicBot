@@ -775,8 +775,6 @@ namespace EasyMusicBot
                     Console.WriteLine(progress);
                 }
             };
-            audioDownloader.DownloadProgressChanged += (sender, args) => Console.WriteLine(args.ProgressPercentage * 0.85);
-            audioDownloader.AudioExtractionProgressChanged += (sender, args) => Console.WriteLine(85 + args.ProgressPercentage * 0.15);
 
             if (DownloadExists(GetVideoBySearch(Id), true)) return;
 
