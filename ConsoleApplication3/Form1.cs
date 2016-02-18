@@ -32,15 +32,15 @@ namespace EasyMusicBot
 
         private void button1_Click(object sender, EventArgs e)
         {
-            p.SendCmd(textBox1.Text);
+            p.SendCmd(textBox1.Text, 500);
         }
 
         private void SkipButton_Click(object sender, EventArgs e)
         {
-            if (p.AudioMethod.Contains("VLC"))
+            if (Settings.AudioMethod.Contains("VLC"))
             {
-                p.Skipping = true;
-                try { p.CurAM.Kill(); } catch { }
+                Modules.MusicModule.Skipping = true;
+                try { Settings.CurAM.Kill(); } catch { }
             }
             else
             {
@@ -50,7 +50,7 @@ namespace EasyMusicBot
 
         private void PlayButton_Click(object sender, EventArgs e)
         {
-            if (p.AudioMethod.Contains("VLC"))
+            if (Settings.AudioMethod.Contains("VLC"))
             {
                 SendKeys.SendWait("%(j)");
             }
@@ -62,7 +62,7 @@ namespace EasyMusicBot
 
         private void PauseButton_Click(object sender, EventArgs e)
         {
-            if (p.AudioMethod.Contains("VLC"))
+            if (Settings.AudioMethod.Contains("VLC"))
             {
                 SendKeys.SendWait("%(j)");
             }
@@ -74,17 +74,15 @@ namespace EasyMusicBot
 
         private void SRToggleButton_Click(object sender, EventArgs e)
         {
-            if (p.SREnable)
+            if (Settings.SREnable)
             {
-                p.SREnable = false;
+                Settings.SREnable = false;
                 SRToggleButton.Text = "Enable";
-                p.SetDiscordStatus();
             }
             else
             {
-                p.SREnable = true;
+                Settings.SREnable = true;
                 SRToggleButton.Text = "Disable";
-                p.SetDiscordStatus();
             }
         }
 
@@ -103,7 +101,7 @@ namespace EasyMusicBot
             else
             {
                 listBox1.Items.Clear();
-                foreach (Video v in p.VidList)
+                foreach (Video v in Modules.MusicModule.VidList)
                 {
                     listBox1.Items.Add(v.Snippet.Title);
                 }
@@ -119,10 +117,10 @@ namespace EasyMusicBot
         {
             if (listBox1.SelectedIndex == 0)
             {
-                if (p.AudioMethod.Contains("VLC"))
+                if (Settings.AudioMethod.Contains("VLC"))
                 {
-                    p.Skipping = true;
-                    try { p.CurAM.Kill(); } catch { }
+                    Modules.MusicModule.Skipping = true;
+                    try { Settings.CurAM.Kill(); } catch { }
                 }
                 else
                 {
@@ -131,7 +129,7 @@ namespace EasyMusicBot
             }
             else
             {
-                p.VidList.RemoveAt(listBox1.SelectedIndex);
+                Modules.MusicModule.VidList.RemoveAt(listBox1.SelectedIndex);
             }
             BoxHandler();
 
@@ -163,17 +161,17 @@ namespace EasyMusicBot
             if (index != 0)
             {
                 this.listBox1.Items.Remove(data);
-                List<Video> FakeList = p.VidList;
-                for (int i = p.VidList.Count - 1; i >= 0; i--)
+                List<Video> FakeList = Modules.MusicModule.VidList;
+                for (int i = Modules.MusicModule.VidList.Count - 1; i >= 0; i--)
                 {
-                    if (p.VidList[i].Snippet.Title.Equals(data))
+                    if (Modules.MusicModule.VidList[i].Snippet.Title.Equals(data))
                     {
-                        p.VidList.Remove(p.VidList[i]);
+                        Modules.MusicModule.VidList.Remove(Modules.MusicModule.VidList[i]);
                         break;
                     }
                 }
                 this.listBox1.Items.Insert(index, data);
-                p.VidList.Insert(index, p.GetVideoBySearch(data));
+                Modules.MusicModule.VidList.Insert(index, p.GetVideoBySearch(data));
             }
             else
             {
@@ -189,10 +187,10 @@ namespace EasyMusicBot
             {
                 if (listBox1.SelectedIndex == 0)
                 {
-                    if (p.AudioMethod.Contains("VLC"))
+                    if (Settings.AudioMethod.Contains("VLC"))
                     {
-                        p.Skipping = true;
-                        try { p.CurAM.Kill(); } catch { }
+                        Modules.MusicModule.Skipping = true;
+                        try { Settings.CurAM.Kill(); } catch { }
                     }
                     else
                     {
@@ -201,7 +199,7 @@ namespace EasyMusicBot
                 }
                 else
                 {
-                    p.VidList.RemoveAt(listBox1.SelectedIndex);
+                    Modules.MusicModule.VidList.RemoveAt(listBox1.SelectedIndex);
                 }
                 BoxHandler();
             }
