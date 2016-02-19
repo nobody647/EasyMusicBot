@@ -3,19 +3,19 @@ using Discord.Commands;
 using Discord.Commands.Permissions.Levels;
 using Discord.Commands.Permissions.Visibility;
 using Discord.Modules;
-using System.Collections.Generic;
-using System.Linq;
-using System;
-using System.Threading.Tasks;
-using Google.Apis.YouTube.v3.Data;
-using Google.Apis.YouTube.v3;
 using Google.Apis.Services;
-using System.Threading;
-using YoutubeExtractor;
-using System.IO;
-using System.Windows.Forms;
+using Google.Apis.YouTube.v3;
+using Google.Apis.YouTube.v3.Data;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using YoutubeExtractor;
 
 namespace EasyMusicBot.Modules
 {
@@ -52,6 +52,7 @@ namespace EasyMusicBot.Modules
                 group.CreateCommand("add")
                     .Alias(Settings.RequestOps.ToArray())
                     .Description("Adds a video (either by search or URL) to the playlist")
+                    .MinPermissions(Settings.RequestPerm)
                     .Parameter("p", ParameterType.Unparsed)
                     .Do(async e =>
                     {
@@ -102,6 +103,7 @@ namespace EasyMusicBot.Modules
                     .Alias(Settings.SkipOps.ToArray())
                     .Description("Skips either the current video or a specified video")
                     .Parameter("p", ParameterType.Multiple)
+                    .MinPermissions(Settings.SkipPerm)
                     .Do(async e =>
                     {
                         if (e.Args.Any())
@@ -140,6 +142,7 @@ namespace EasyMusicBot.Modules
                     });
                 group.CreateCommand("pause")
                     .Description("Pauses the current song")
+                    .MinPermissions(Settings.RequestPerm)
                     .Do(e =>
                     {
                         if (Settings.AudioMethod.Contains("VLC"))
@@ -153,6 +156,7 @@ namespace EasyMusicBot.Modules
                     });
                 group.CreateCommand("play")
                     .Description("Pauses the current song")
+                    .MinPermissions(Settings.RequestPerm)
                     .Do(e =>
                     {
                         if (Settings.AudioMethod.Contains("VLC"))
@@ -166,25 +170,19 @@ namespace EasyMusicBot.Modules
                     });
                 group.CreateCommand("srtoggle")
                     .Description("Toggles songrequest on or off")
+                    .MinPermissions(Settings.ConfigPerm)
                     .Do(async e =>
                     {
-                        if (CheckPrivilage(e.User, e.Server, Settings.ModRole))
+                        await e.Channel.SendMessage("Songrequest toggled");
+                        if (Settings.SREnable == false)
                         {
-                            await e.Channel.SendMessage("Songrequest toggled");
-                            if (Settings.SREnable == false)
-                            {
-                                Settings.SREnable = true;
-                            }
-                            else
-                            {
-                                Settings.SREnable = false;
-                            }
-                            await e.Channel.SendMessage("Songrequest has been set to " + Settings.SREnable);
+                            Settings.SREnable = true;
                         }
                         else
                         {
-                            await e.Channel.SendMessage("Sorry, you don't have permission to do that");
+                            Settings.SREnable = false;
                         }
+                        await e.Channel.SendMessage("Songrequest has been set to " + Settings.SREnable);
                     });
                 group.CreateCommand("playlist")
                     .Description("Shows the current playlist")
@@ -207,14 +205,10 @@ namespace EasyMusicBot.Modules
                     .Description("Change the config. Ask Ian to do it for you if it seems not to be working")
                     .Parameter("setting", ParameterType.Required)
                     .Parameter("value", ParameterType.Unparsed)
+                    .MinPermissions(Settings.ConfigPerm)
                     .Do(async e =>
                     {
                         Console.WriteLine("Config command recieved!");
-                        if (!CheckPrivilage(e.User, e.Server, Settings.ModRole) && !e.User.Name.Equals("Ian"))
-                        {
-                            await e.Channel.SendMessage("Sorry you don't have permission to do that. Required role: " + Settings.ModRole);
-                            return;
-                        }
                         try
                         {
                             if (e.GetArg("setting").Equals("maxlength"))
@@ -227,19 +221,19 @@ namespace EasyMusicBot.Modules
                             {
                                 await e.Channel.SendMessage("Config changed!");
                                 Console.WriteLine("Thing changed!");
-                                Settings.ModRole = e.GetArg("value");
+                                Settings.ConfigPerm = Convert.ToInt32(e.GetArg("value"));
                             }
                             if (e.GetArg("setting").Equals("skiprole"))
                             {
                                 await e.Channel.SendMessage("Config changed!");
                                 Console.WriteLine("Thing changed!");
-                                Settings.SkipRole = e.GetArg("value");
+                                Settings.SkipPerm = Convert.ToInt32(e.GetArg("value"));
                             }
                             if (e.GetArg("setting").Equals("requestrole"))
                             {
                                 await e.Channel.SendMessage("Config changed!");
                                 Console.WriteLine("Thing changed!");
-                                Settings.RequestRole = e.GetArg("value");
+                                Settings.RequestPerm = Convert.ToInt32(e.GetArg("value"));
                             }
                             if (e.GetArg("setting").Equals("spchannel"))
                             {
@@ -283,22 +277,18 @@ namespace EasyMusicBot.Modules
                 group.CreateCommand("skipall")
                     .Alias(new string[1] { "clearplaylist" })
                     .Description("Clear the entire playlist")
+                    .MinPermissions(Settings.SkipPerm)
                     .Do(async e =>
                     {
-                        if (!CheckPrivilage(e.User, e.Server, Settings.ModRole) && !e.User.Name.Equals("Ian"))
-                        {
-                            await e.Channel.SendMessage("Sorry you don't have permission to do that. Required role: " + Settings.ModRole);
-                        }
                         Skipping = true;
                         ClearPlaylist();
                         if (Settings.SpChannel && e.Channel.Name.Equals(Settings.Channel)) e.Channel.SendMessage("Playlist cleared");
                         if (Settings.SpChannel && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
                     });
-                group.CreateCommand("start")
+                group.CreateCommand("debug")
                     .Do(async e =>
                     {
-                        await e.Channel.SendMessage("Started!");
-                        VidLoopAsync();
+                        await e.Channel.SendMessage(e.User.ServerPermissions.ToString());
                     });
             });
 
@@ -436,23 +426,6 @@ namespace EasyMusicBot.Modules
             return false;
         }
 
-        Boolean CheckPrivilage(User u, Server s, String rName)
-        {
-            if (rName.Equals("@everyone"))
-            {
-                return true;
-            }
-            foreach (Role r in u.Roles)
-            {
-                //MessageBox.Show(r.Name);
-                if (r.Name.Equals(rName))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         void ClearPlaylist()
         {
             Program.f.axWindowsMediaPlayer1.Ctlcontrols.stop();
@@ -467,9 +440,7 @@ namespace EasyMusicBot.Modules
 
                 while (0 >= VidList.Count)
                 {
-                    //Console.WriteLine("Waiting for video");
                     await Task.Delay(1000);
-                    Console.WriteLine("waiting");
                 }
 
                 if (Settings.AudioMethod.Equals("VLCDl")) await PlayDLVid(VidList[0]);
@@ -486,6 +457,7 @@ namespace EasyMusicBot.Modules
 
 
         }
+
         async Task WMPPlay(Video v)
         {
             while (!DownloadExists(v, true))

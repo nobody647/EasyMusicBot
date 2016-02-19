@@ -64,11 +64,11 @@ namespace EasyMusicBot
 
             if (Settings.password == null) throw new Exception();
 
-            if (Settings.ModRole == null) throw new Exception();
+            if (Settings.ConfigPerm == null) throw new Exception();
 
-            if (Settings.RequestRole == null) throw new Exception();
+            if (Settings.RequestPerm == null) throw new Exception();
 
-            if (Settings.SkipRole == null) throw new Exception();
+            if (Settings.SkipPerm == null) throw new Exception();
 
             if (Settings.Channel == null) throw new Exception();
 
@@ -83,7 +83,6 @@ namespace EasyMusicBot
         {
 
             Settings.ReadConfig();
-            VerifyReady();
 
             Thread t = new Thread(() =>
             {
@@ -93,19 +92,6 @@ namespace EasyMusicBot
             });
             t.SetApartmentState(ApartmentState.STA);
             t.Start();
-
-
-
-            //Client = new DiscordClient(new DiscordConfig
-            //{
-            //    AppName = "Easy Music Bot",
-            //    AppUrl = "Put url here",
-            //    //AppVersion = DiscordConfig.LibVersion,
-            //    LogLevel = LogSeverity.Info,
-            //    MessageCacheSize = 0,
-            //    UsePermissionsCache = false
-            //});
-
 
             Client = new DiscordClient(x =>
             {
@@ -125,20 +111,16 @@ namespace EasyMusicBot
                 //x.ExecuteHandler = OnCommandExecuted;
                 x.ErrorHandler = OnCommandError;
             })
+            .UsingPermissionLevels(Permissions.CheckPrivilage)
             .UsingModules()
             .AddModule<Modules.MusicModule>("Music", ModuleFilter.None);
-            //.UsingPermissionLevels(PermissionResolver);
-
-            //VidLoopAsync();
 
             Client.LoggedIn += (s, e) => {
                 Console.WriteLine("Connected to Discord with email " + Settings.email);
-                //Client.SetGame(null);
                 foreach (Discord.Channel c in Client.GetServer(104979971667197952).TextChannels)
                 {
                     if (c.Name.Equals(Settings.Channel))
                     {
-                        //MessageBox.Show("che set to " + c.Name);
                         DChannel = c;
                     }
                 }
@@ -148,8 +130,6 @@ namespace EasyMusicBot
             Client.MessageReceived += (s, e) =>
             {
                 LRC = e.Message.Channel;
-                //Console.WriteLine("Message recieved!");
-                //InterpretCommand(e.Message);
             };
 
             try
