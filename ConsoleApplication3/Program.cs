@@ -70,8 +70,6 @@ namespace EasyMusicBot
 
             if (Settings.SkipPerm == null) throw new Exception();
 
-            if (Settings.Channel == null) throw new Exception();
-
             if (Settings.AudioMethod == null) throw new Exception();
 
             if (!Settings.AudioMethod.Equals("WMPDl") && !Settings.AudioMethod.Equals("VLCDl") && !Settings.AudioMethod.Equals("VLCSt") && !Settings.AudioMethod.Equals("IE")) throw new Exception();
@@ -81,9 +79,7 @@ namespace EasyMusicBot
 
         public void Run()
         {
-
             Settings.ReadConfig();
-
             Thread t = new Thread(() =>
             {
                 f = new EasyMusicBot.Form1(this);
@@ -92,7 +88,6 @@ namespace EasyMusicBot
             });
             t.SetApartmentState(ApartmentState.STA);
             t.Start();
-
             Client = new DiscordClient(x =>
             {
                 x.AppName = "Easy Music Bot";
@@ -113,10 +108,9 @@ namespace EasyMusicBot
             })
             .UsingPermissionLevels(Permissions.CheckPrivilage)
             .UsingModules()
-            .AddModule<Modules.MusicModule>("Music", ModuleFilter.None);
-
+            .AddModule<Modules.MusicModule>("Music", ModuleFilter.None)
+            .AddModule<MiscModule>("Misc", ModuleFilter.None);
             Client.LoggedIn += (s, e) => {
-                Console.WriteLine("Connected to Discord with email " + Settings.email);
                 foreach (Discord.Channel c in Client.GetServer(104979971667197952).TextChannels)
                 {
                     if (c.Name.Equals(Settings.Channel))
@@ -140,11 +134,14 @@ namespace EasyMusicBot
                     {
                         try
                         {
+                            //await Client.Connect("jetfuelcantmeltmusicbot@gmail.com", "vlamzwo647");
                             await Client.Connect(Settings.email, Settings.password);
+                            Console.WriteLine("Connected to Discord with email " + Settings.email);
                             break;
                         }
                         catch (Exception ex)
                         {
+                            Console.WriteLine("We done fucked up "+ex);
                             Client.Log.Error($"Login Failed", ex);
                             await Task.Delay(Client.Config.FailedReconnectDelay);
                         }
@@ -157,7 +154,6 @@ namespace EasyMusicBot
                 Console.WriteLine("Make sure you typed the email and password fields correctly in the config.txt");
                 Console.WriteLine("If you happen across the developer, make sure to tell him this: " + e.Message);
             }
-            MessageBox.Show("t");
             
         }
 
@@ -187,23 +183,20 @@ namespace EasyMusicBot
             }
         }
 
-        Boolean CheckPrivilage(User u, Server s, String rName)
+        public async Task SendCmd(String s, int ms)
         {
-            if (rName.Equals("@everyone"))
-            {
-                return true;
-            }
-            foreach (Role r in u.Roles)
-            {
-                //MessageBox.Show(r.Name);
-                if (r.Name.Equals(rName))
-                {
-                    return true;
-                }
-            }
-            return false;
+            //Discord.Channel che = LRC;
+            
+            Task<Discord.Message> m = DChannel.SendMessage(s);
+            Discord.Message ml = m.Result;
+            await Task.Delay(ms);
+            await ml.Delete();
         }
 
+        static void OnProcessExit(object sender, EventArgs e)
+        {
+            Debug.WriteLine("I'm out of here");
+        }
         public Video GetVideoBySearch(string Message)
         {
             //If message is a youtube link, change message to video ID
@@ -215,7 +208,7 @@ namespace EasyMusicBot
             if (Message.Contains("youtube.com"))
             {
                 Message = Message.Substring(Message.IndexOf('='));
-                if(Message.Contains('&')) Message = Message.Remove(Message.IndexOf('&'));
+                if (Message.Contains('&')) Message = Message.Remove(Message.IndexOf('&'));
             }
 
             //Creates search request
@@ -238,27 +231,6 @@ namespace EasyMusicBot
             {
                 return null;
             }
-        }
-
-        
-
-        
-
-
-        public async Task SendCmd(String s, int ms)
-        {
-            //Discord.Channel che = LRC;
-            
-            Task<Discord.Message> m = DChannel.SendMessage(s);
-            Discord.Message ml = m.Result;
-            await Task.Delay(ms);
-            await ml.Delete();
-        }
-
-
-        static void OnProcessExit(object sender, EventArgs e)
-        {
-            Debug.WriteLine("I'm out of here");
         }
     }
 

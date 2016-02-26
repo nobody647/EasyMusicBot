@@ -29,25 +29,17 @@ namespace EasyMusicBot.Modules
         Stopwatch watch = new Stopwatch();
         public static bool Skipping = false;
 
-        private ModuleManager _manager;
-        private DiscordClient _client;
+        private ModuleManager Manager;
+        private DiscordClient Client;
 
         void IModule.Install(ModuleManager manager)
         {
-            _manager = manager;
-            _client = manager.Client;
+            Manager = manager;
+            Client = manager.Client;
 
             manager.CreateCommands("", group =>
             {
                 group.PublicOnly();
-
-                group.CreateCommand("echo")
-                    .Parameter("EM")
-                    .Do(async e =>
-                    {
-                        Console.WriteLine("poop");
-                        await e.Channel.SendMessage(e.GetArg("EM"));
-                    });
 
                 group.CreateCommand("add")
                     .Alias(Settings.RequestOps.ToArray())
@@ -97,7 +89,8 @@ namespace EasyMusicBot.Modules
                         VidList.Add(Result);
                         Program.f.BoxHandler();
                         Console.WriteLine("Added video " + Result.Snippet.Title);
-                        await e.Message.Delete();
+                        if (Settings.Channel != null && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
+                        if (Settings.Channel != null && e.Channel.Name.Equals(Settings.Channel)) await e.Channel.SendMessage("Added video " + Result.Snippet.Title);
                     });
                 group.CreateCommand("skip")
                     .Alias(Settings.SkipOps.ToArray())
@@ -138,12 +131,12 @@ namespace EasyMusicBot.Modules
                         try { Settings.CurAM.Kill(); } catch { }
                         await Task.Delay(110);
                         Program.f.BoxHandler();
-                        await e.Message.Delete();
+                        if (Settings.Channel != null && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
                     });
                 group.CreateCommand("pause")
                     .Description("Pauses the current song")
                     .MinPermissions(Settings.RequestPerm)
-                    .Do(e =>
+                    .Do(async e =>
                     {
                         if (Settings.AudioMethod.Contains("VLC"))
                         {
@@ -153,11 +146,12 @@ namespace EasyMusicBot.Modules
                         {
                             Program.f.axWindowsMediaPlayer1.Ctlcontrols.pause();
                         }
+                        if (Settings.Channel != null && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
                     });
                 group.CreateCommand("play")
                     .Description("Pauses the current song")
                     .MinPermissions(Settings.RequestPerm)
-                    .Do(e =>
+                    .Do(async e =>
                     {
                         if (Settings.AudioMethod.Contains("VLC"))
                         {
@@ -167,13 +161,13 @@ namespace EasyMusicBot.Modules
                         {
                             Program.f.axWindowsMediaPlayer1.Ctlcontrols.pause();
                         }
+                        if (Settings.Channel != null && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
                     });
                 group.CreateCommand("srtoggle")
                     .Description("Toggles songrequest on or off")
                     .MinPermissions(Settings.ConfigPerm)
                     .Do(async e =>
                     {
-                        await e.Channel.SendMessage("Songrequest toggled");
                         if (Settings.SREnable == false)
                         {
                             Settings.SREnable = true;
@@ -182,7 +176,8 @@ namespace EasyMusicBot.Modules
                         {
                             Settings.SREnable = false;
                         }
-                        await e.Channel.SendMessage("Songrequest has been set to " + Settings.SREnable);
+                        if (Settings.Channel != null && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
+                        if (Settings.Channel != null && e.Channel.Name.Equals(Settings.Channel)) await e.Channel.SendMessage("Songrequest has been set to " + Settings.SREnable);
                     });
                 group.CreateCommand("playlist")
                     .Description("Shows the current playlist")
@@ -235,30 +230,25 @@ namespace EasyMusicBot.Modules
                                 Console.WriteLine("Thing changed!");
                                 Settings.RequestPerm = Convert.ToInt32(e.GetArg("value"));
                             }
-                            if (e.GetArg("setting").Equals("spchannel"))
-                            {
-                                await e.Channel.SendMessage("Config changed!");
-                                Console.WriteLine("Thing changed!");
-                                Settings.SpChannel = Convert.ToBoolean(e.GetArg("value"));
-                            }
                             if (e.GetArg("setting").Equals("channel"))
                             {
-                                await e.Channel.SendMessage("Config changed!");
-                                Console.WriteLine("Thing changed!");
-                                Settings.Channel = e.GetArg("value");
-                            }
-                            if (e.GetArg("setting").Equals("channel"))
-                            {
-                                await e.Channel.SendMessage("Config changed!");
-                                Console.WriteLine("Thing changed!");
-                                Settings.Channel = e.GetArg("value");
+                                if (e.GetArg("value").Equals("none") || e.GetArg("value").Equals("null")) Settings.Channel = null;
+                                if (!e.GetArg("value").Equals("none") && !e.GetArg("value").Equals("null")) Settings.Channel = e.GetArg("value");
+                                if(Settings.Channel == null)
+                                {
+                                    Console.WriteLine("Specific channel has been disabled");
+                                    await e.Channel.SendMessage("Specific channel has been disabled");
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Specific channel has been set to " + Settings.Channel);
+                                    await e.Channel.SendMessage("Specific channel has been set to " + Settings.Channel);
+                                }
                             }
                             if (e.GetArg("setting").Equals("audiomethod"))
                             {
-                                ClearPlaylist();
-                                await e.Channel.SendMessage("Config changed!");
-                                Console.WriteLine("Thing changed!");
                                 Settings.AudioMethod = e.GetArg("value");
+                                await e.Channel.SendMessage("Audio method changed to "+Settings.AudioMethod+". It is reccomended that you clear the playlist");
                             }
                             if (e.GetArg("setting").Equals("dlpath"))
                             {
@@ -282,13 +272,8 @@ namespace EasyMusicBot.Modules
                     {
                         Skipping = true;
                         ClearPlaylist();
-                        if (Settings.SpChannel && e.Channel.Name.Equals(Settings.Channel)) e.Channel.SendMessage("Playlist cleared");
-                        if (Settings.SpChannel && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
-                    });
-                group.CreateCommand("debug")
-                    .Do(async e =>
-                    {
-                        await e.Channel.SendMessage(e.User.ServerPermissions.ToString());
+                        if (Settings.Channel != null && !e.Channel.Name.Equals(Settings.Channel)) await e.Message.Delete();
+                        if (Settings.Channel != null && e.Channel.Name.Equals(Settings.Channel)) await e.Channel.SendMessage("Playlist cleared");
                     });
             });
 
@@ -398,7 +383,6 @@ namespace EasyMusicBot.Modules
             };
 
             if (DownloadExists(GetVideoBySearch(Id), true)) return;
-
             try
             {
                 audioDownloader.Execute();
@@ -449,7 +433,9 @@ namespace EasyMusicBot.Modules
 
                 else if (Settings.AudioMethod.Equals("WMPDl")) await WMPPlay(VidList[0]);
 
-                _client.SetGame(null);
+                VidList.RemoveAt(0);
+
+                Client.SetGame(null);
 
                 Program.f.BoxHandler();
                 Console.WriteLine("Done!");
@@ -462,11 +448,11 @@ namespace EasyMusicBot.Modules
         {
             while (!DownloadExists(v, true))
             {
-                _client.SetGame("Waiting for download");
+                Client.SetGame("Waiting for download");
                 Console.WriteLine("Waiting for download");
                 await Task.Delay(1000);
             }
-            _client.SetGame(VidList[0].Snippet.Title);
+            Client.SetGame(VidList[0].Snippet.Title);
 
             Program.f.axWindowsMediaPlayer1.URL = (v.Id.Remove(v.Id.Length - 4) + "!done.mp3");
             Program.f.axWindowsMediaPlayer1.Ctlcontrols.play();
@@ -474,19 +460,18 @@ namespace EasyMusicBot.Modules
             {
                 await Task.Delay(100);
             }
-            VidList.RemoveAt(0);
         }
 
         async Task PlayDLVid(Video v)
         {
             Console.WriteLine("Trying to play video");
-            while (!DownloadExists(v, true))
+            while (!DownloadExists(v, true) && VidList.Contains(v))
             {
-                _client.SetGame("Waiting for download");
+                Client.SetGame("Waiting for download");
                 Console.WriteLine("Waiting for download");
                 await Task.Delay(1000);
             }
-            _client.SetGame(VidList[0].Snippet.Title);
+            Client.SetGame(VidList[0].Snippet.Title);
 
             Console.WriteLine(v.Snippet.Title + " Playling download");
 
@@ -497,13 +482,12 @@ namespace EasyMusicBot.Modules
                 await Task.Delay(100);
             }
             Console.WriteLine("VLC has exited");
-            VidList.RemoveAt(0);
 
         }
 
         async Task PlaySTVid(Video v)
         {
-            _client.SetGame(VidList[0].Snippet.Title);
+            Client.SetGame(VidList[0].Snippet.Title);
 
             Settings.CurAM = Process.Start(Settings.VLCPath + "/vlc.exe", " --no-video http://www.youtube.com/watch?v=" + v.Id + " --qt-start-minimized");
             Skipping = false;
@@ -519,7 +503,7 @@ namespace EasyMusicBot.Modules
 
                     //Thread t = new Thread(() => { DownloadAudio(v.Id); });
                     //t.Start();
-                    _client.SetGame("Waiting for download");
+                    Client.SetGame("Waiting for download");
                     DownloadAudio(v.Id);
                     await Program.LRC.SendMessage("Download finished");
                 }
@@ -528,7 +512,6 @@ namespace EasyMusicBot.Modules
             }
             Skipping = false;
             Console.WriteLine("VLC has exited");
-            VidList.RemoveAt(0);
         }
     }
 }

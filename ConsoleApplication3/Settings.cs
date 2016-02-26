@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Windows.Forms;
 
 namespace EasyMusicBot
 {
@@ -17,7 +18,6 @@ namespace EasyMusicBot
         public static int ConfigPerm;
         public static int RequestPerm;
         public static int SkipPerm;
-        public static bool SpChannel;
         public static String Channel;
         public static String AudioMethod;
         public static String VLCPath;
@@ -39,13 +39,13 @@ namespace EasyMusicBot
                 {
                     if (line.Contains("=") && !line.StartsWith("#"))
                     {
-                        switch (line.Split('=')[0])
+                        switch (line.Split('=')[0].Trim(' '))
                         {
                             case "email":
                                 email = line.Split('=')[1].Trim(' ');
                                 break;
                             case "password":
-                                password = line.Split('=')[1];
+                                password = line.Split('=')[1].Trim(' ');
                                 break;
                             case "srDefault":
                                 SREnable = Convert.ToBoolean(line.Split('=')[1].Trim(' '));
@@ -54,14 +54,14 @@ namespace EasyMusicBot
                                 String[] opsAdd = line.Split('=')[1].Trim(' ').Split(',');
                                 foreach (string s in opsAdd)
                                 {
-                                    RequestOps.Add(s);
+                                    RequestOps.Add(s.Trim(' '));
                                 }
                                 break;
                             case "skipOps":
                                 String[] opsAdd2 = line.Split('=')[1].Trim(' ').Split(',');
                                 foreach (string s in opsAdd2)
                                 {
-                                    SkipOps.Add(s);
+                                    SkipOps.Add(s.Trim(' '));
                                 }
                                 break;
                             case "maxLength":
@@ -75,9 +75,6 @@ namespace EasyMusicBot
                                 break;
                             case "skip":
                                 SkipPerm = Convert.ToInt32(line.Split('=')[1].Trim(' '));
-                                break;
-                            case "spChannel":
-                                SpChannel = Convert.ToBoolean(line.Split('=')[1].Trim(' '));
                                 break;
                             case "channel":
                                 Channel = line.Split('=')[1].Trim(' ');
